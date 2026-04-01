@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16        # PostgreSQL 16 with pgvector pre-installed
+    container_name: meetai_postgres
+    environment:
+      POSTGRES_USER: meetai
+      POSTGRES_PASSWORD: meetai
+      POSTGRES_DB: meetai
+    ports:
+      - "5432:5432"                       # expose to localhost so FastAPI can connect
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # persist data between restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meetai -d meetai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine                 # lightweight Redis 7
+    container_name: meetai_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,28 @@
+# Web framework + server
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+pgvector==0.3.6
+
+# Task queue
+celery[redis]==5.4.0
+redis==5.2.1
+
+# LLM
+groq==0.13.1
+
+# ML / Embeddings (local, no API cost)
+sentence-transformers==3.3.1
+torch==2.5.1
+
+# File handling
+python-multipart==0.0.20
+aiofiles==24.1.0
+webvtt-py==0.5.1
+
+# Config
+python-dotenv==1.0.1

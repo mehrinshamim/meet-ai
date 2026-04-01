@@ -1,0 +1,34 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment — never commit secrets
+.env
+
+# uv lock file — commit this for reproducible installs across machines
+# uv.lock
+
+# Alembic compiled
+backend/alembic/__pycache__/
+
+#  AI assistant personal files, not project docs
+.claude/
+CLAUDE.md
+memory-bank/
+log.md
+PLAN.md
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads (user data, not code)
+uploads/
