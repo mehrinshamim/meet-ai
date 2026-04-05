@@ -131,6 +131,16 @@
 
 ## Questions & Concepts (Q&A)
 
+### Q: Why bge-large-en-v1.5 instead of all-MiniLM-L6-v2? Most MVPs use MiniLM.
+
+**Short answer:** MiniLM (384 dims, 22M params) is the default for quick prototypes. This build targets production-quality RAG, so we use bge-large (1024 dims, 335M params) which scores ~5 points higher on the MTEB retrieval benchmark.
+
+The speed difference (~10x) doesn't matter here — embedding happens once per upload in a background task. A 30-min meeting (~200 chunks) embeds in under 1 second even with bge-large.
+
+The quality difference does matter: meeting language is noisy and domain-specific. bge-large has more dimensions to encode that nuance, and its stronger semantic scores make the hybrid RRF merge more reliable.
+
+Full comparison in `docs/model-choices.md`.
+
 ### Q: What if a user's question spans multiple parent chunks — or even multiple meetings?
 
 The system handles this naturally. Here's the full flow:
