@@ -208,6 +208,29 @@ _To be added when Phase 6 begins._
 ## Phase 7 — Chat Route
 _To be added when Phase 7 begins._
 
+## Phase 2 — File Parser + Chunker
+
+### WebVTT format
+WebVTT (Web Video Text Tracks) is the standard subtitle/caption format used by Zoom, Google Meet, and Microsoft Teams exports. Each block is called a **cue** and contains a time range and text. The `<v Speaker>` tag is the W3C-standard way to encode who is speaking. The `webvtt-py` library parses these files and gives you a list of cue objects — `caption.start`, `caption.end`, `caption.text`. Important: `caption.text` strips the `<v>` tags, so you must read the speaker from `caption.raw_text` instead.
+
+### Why we use a tempfile for VTT parsing
+`webvtt-py` 0.5.x `read_buffer()` is unreliable with StringIO. Instead, we write the content to a `NamedTemporaryFile` (a real file that auto-deletes), pass its path to `webvtt.read()`, then delete it. This is a common pattern when a library only accepts file paths, not in-memory buffers.
+
+### Chunking — why not split by character count?
+Splitting a transcript at fixed character intervals (e.g. every 1000 characters) will cut mid-sentence or mid-thought, producing fragments with no clear meaning. The embedding of "...and that is why we" is essentially meaningless. We always split at speaker-turn boundaries so each chunk is a complete thought.
+
+### Token count estimation
+A "token" is roughly a word-fragment used by LLM tokenisers. On average, one English word ≈ 1.3 tokens. We estimate `len(text.split()) * 1.3` rather than importing a tokeniser (which would be an extra dependency). This is accurate enough for chunking decisions — we don't need exact counts, just a rough size signal.
+
+### Parent-child chunk pattern
+This is the most important RAG design decision in the project. Child chunks (~400 tokens) are small enough that their embeddings are semantically precise — they represent one focused idea. But 400 tokens is often too little context for the LLM to write a complete answer. So we also store parent chunks (5-minute windows, ~1200 tokens), which are the full surrounding conversation. At query time: **vector search uses children** (precise), **LLM receives parents** (rich context). The child's `parent_id` in the database links them.
+
+### Dataclass
+A Python `@dataclass` automatically generates `__init__`, `__repr__`, and `__eq__` methods from the class fields. It's like a struct — a simple container for data with no behaviour. We use them for `Turn`, `ChunkData`, and `ParseResult` to get clean, readable data objects without writing boilerplate constructors.
+
+### PLAN.md step: "Test: parse a sample .vtt and .txt, verify chunk output"
+From Phase 2 onward, every component has a dedicated manual test file in `tests/manual/`. Run them with `uv run python tests/manual/test_<name>.py`. Each test prints PASS/FAIL and exits with code 1 on any failure. This lets you verify a single phase in isolation before moving to the next.
+
 ## Phase 8 — Extractions + Sentiment Routes
 _To be added when Phase 8 begins._
 

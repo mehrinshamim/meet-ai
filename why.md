@@ -126,3 +126,24 @@
 ## Docker Compose
 **What:** Defines and runs multi-container Docker apps.
 **Why:** Instead of asking you to manually install PostgreSQL and Redis, docker-compose.yml starts both with one command: `docker compose up -d`. Reproducible, isolated, no system pollution.
+
+---
+
+## Questions & Concepts (Q&A)
+
+### Q: What if a user's question spans multiple parent chunks — or even multiple meetings?
+
+The system handles this naturally. Here's the full flow:
+
+1. The user's question is embedded → vector search finds the top 20 most similar **child** chunks across the entire meeting (or all meetings if it's a cross-meeting query)
+2. Those 20 children may come from **different parent chunks** — that's expected and fine
+3. After cross-encoder reranking to top 5, we fetch the **parent** of each winning child
+4. The LLM receives 3–5 parent chunks (each ~1200 tokens) as context, from potentially different time windows or different meeting files
+
+So if the answer lives at minute 2 and minute 47 of a meeting, retrieval surfaces one child from each window → two different parents are sent → the LLM synthesises an answer that references both.
+
+**Cross-meeting queries** work identically — the top 5 children might come from 3 different transcript files. Each has its own parent. The citations (`[[meeting: file, time: HH:MM:SS, speaker: name]]`) in the LLM's answer tell the user exactly which meeting and moment each piece came from.
+
+**Why doesn't this hit context limits?** Each parent is ~1200 tokens. 5 parents = ~6000 tokens of context. llama-3.3-70b on Groq supports 128k tokens. We have ~120k tokens of headroom.
+
+**The design principle:** child chunks = retrieval precision, parent chunks = LLM context richness. The two levels decouple these concerns so you don't have to choose between them.
