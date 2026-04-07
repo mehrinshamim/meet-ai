@@ -22,6 +22,7 @@ Why singleton?
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Sequence
 
@@ -183,7 +184,14 @@ async def embed_and_store(
 
     Only embeds child chunks (is_parent=False) — parent chunks don't need
     embeddings because they're only fetched for context, never searched.
+
+    embed_texts() runs the sentence-transformer model, which is a synchronous
+    CPU-intensive operation.  Running it directly in an async function blocks
+    the event loop for the duration (2-30 s on first model load), holding the
+    open DB transaction hostage.  run_in_executor() offloads it to the default
+    thread pool so the event loop stays responsive.
     """
-    vectors = embed_texts(texts)
+    loop = asyncio.get_running_loop()
+    vectors = await loop.run_in_executor(None, embed_texts, texts)
     await store_embeddings(session, chunk_ids, vectors, texts)
     return vectors
