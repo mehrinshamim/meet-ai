@@ -69,6 +69,30 @@ class MeetingStatusOut(BaseModel):
     error: str | None
 
 
+# ─── Extractions ──────────────────────────────────────────────────────────────
+
+class ExtractionOut(BaseModel):
+    id: int
+    meeting_id: int
+    decisions: list | None
+    action_items: list | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ─── Sentiment ────────────────────────────────────────────────────────────────
+
+class SentimentOut(BaseModel):
+    id: int
+    meeting_id: int
+    speaker_scores: dict | None      # {"Alice": 0.82, "Bob": -0.14}
+    segment_scores: list | None      # [{chunk_id, speaker, start_time, score, label}]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # ─── Stats ────────────────────────────────────────────────────────────────────
 
 class StatsOut(BaseModel):
