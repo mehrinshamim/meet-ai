@@ -256,6 +256,59 @@ def _build_transcript_text(parse_result) -> str:
     return "\n\n".join(pc.text for pc in parse_result.parent_chunks)
 
 
+# ─── Async pipeline orchestrator ─────────────────────────────────────────────
+
+async def _run_pipeline(
+    meeting_id: int,
+    filename: str,
+    parse_result,
+) -> tuple[list[int], list[dict], dict, dict]:
+    """
+    Single-event-loop orchestrator for all async pipeline work.
+
+    Why one function instead of two asyncio.run() calls?
+      asyncio.run() creates a brand-new event loop each time and destroys it
+      when done.  asyncpg connections are stamped with the loop they were
+      created in — if you call asyncio.run() twice, the second call runs in
+      a new loop but finds stale connections from the dead first loop, causing:
+      "Future attached to a different loop".
+
+      The fix: run everything inside a single asyncio.run() so there is only
+      ever one event loop.  Blocking Groq calls are offloaded to a thread pool
+      via run_in_executor() — they run in a background thread without blocking
+      the event loop, and the event loop can do other work while waiting.
+
+    Connection release between DB steps:
+      _store_and_embed() opens a session with "async with AsyncSessionLocal()",
+      which closes (and returns) the connection when the context exits.  By the
+      time we reach run_in_executor(), the DB connection is already released.
+      We get the "don't hold a connection during Groq calls" benefit without
+      needing two separate event loops.
+    """
+    loop = asyncio.get_running_loop()
+
+    # ── Step 1: DB writes + embeddings ────────────────────────────────────────
+    child_ids, chunk_segments = await _store_and_embed(meeting_id, parse_result)
+    # DB connection is released here — _store_and_embed's session context exited.
+
+    # ── Step 2: Groq calls in thread pool ─────────────────────────────────────
+    # run_in_executor(None, fn, *args) runs fn(*args) in the default
+    # ThreadPoolExecutor.  "await" suspends this coroutine until the thread
+    # finishes, but the event loop stays alive and can handle other tasks.
+    full_transcript = _build_transcript_text(parse_result)
+    extractions = await loop.run_in_executor(
+        None, extract_decisions_and_actions, full_transcript, filename
+    )
+    sentiment_data = await loop.run_in_executor(
+        None, analyze_sentiment, chunk_segments
+    )
+
+    # ── Step 3: Store results ─────────────────────────────────────────────────
+    await _store_results(meeting_id, extractions, sentiment_data, chunk_segments)
+
+    return child_ids, chunk_segments, extractions, sentiment_data
+
+
 # ─── Main Celery task ─────────────────────────────────────────────────────────
 
 @celery_app.task(name="tasks.process_meeting")
@@ -266,29 +319,15 @@ def process_meeting(meeting_id: int, filename: str, content: str) -> dict:
     Args:
         meeting_id: PK of the meetings row (created by the upload route).
         filename:   Original filename (e.g. "standup_2024-03-01.vtt").
-                    Used to choose the parser and for Groq context.
         content:    Raw text content of the uploaded file.
 
     Returns:
-        A summary dict {"meeting_id": ..., "child_chunks": ..., "decisions": ...}
-        stored in the Celery result backend (Redis DB 1).
-
-    Error handling:
-        Any unhandled exception is caught, written to meeting.error, then re-raised
-        so Celery marks the task as FAILURE.  The status endpoint reads meeting.error
-        to display the failure reason to the user.
-
-    Why not autoretry_for?
-        Retrying the whole pipeline would re-run the DB inserts, creating duplicate
-        chunks.  Instead, retry logic lives inside the Groq calls (ai.py) where it
-        is safe to retry without side effects.
+        A summary dict stored in the Celery result backend (Redis DB 1).
     """
     logger.info("Pipeline started: meeting_id=%d  file=%s", meeting_id, filename)
 
     try:
-        # ── Step 1: Parse ──────────────────────────────────────────────────────
-        # Pure Python — no DB, no network.  Returns ParseResult with:
-        #   child_chunks, parent_chunks, speaker_names, word_count, meeting_date
+        # ── Step 1: Parse (pure Python, no DB, no network) ────────────────────
         parse_result = parse_transcript(content, filename)
         logger.info(
             "Parsed %s → %d child chunks, %d parent chunks, %d speakers",
@@ -298,38 +337,18 @@ def process_meeting(meeting_id: int, filename: str, content: str) -> dict:
             len(parse_result.speaker_names),
         )
 
-        # ── Step 2: Store chunks + embed ──────────────────────────────────────
-        # async: opens a DB session, inserts rows, embeds child chunks, commits.
-        child_ids, chunk_segments = asyncio.run(
-            _store_and_embed(meeting_id, parse_result)
+        # ── Step 2–6: All async work in a single event loop ───────────────────
+        child_ids, chunk_segments, extractions, sentiment_data = asyncio.run(
+            _run_pipeline(meeting_id, filename, parse_result)
         )
 
-        # ── Step 3: Build transcript text for Groq ────────────────────────────
-        full_transcript = _build_transcript_text(parse_result)
-
-        # ── Step 4: Groq — decisions + action items ────────────────────────────
-        # Synchronous call to ai.py.  Retries internally on rate limits.
-        extractions = extract_decisions_and_actions(full_transcript, filename)
         logger.info(
-            "Extractions done: %d decisions, %d action items",
+            "Pipeline complete: meeting_id=%d  chunks=%d  decisions=%d  action_items=%d",
+            meeting_id,
+            len(child_ids),
             len(extractions.get("decisions", [])),
             len(extractions.get("action_items", [])),
         )
-
-        # ── Step 5: Groq — sentiment ───────────────────────────────────────────
-        sentiment_data = analyze_sentiment(chunk_segments)
-        logger.info(
-            "Sentiment done: %d speakers scored, %d segment scores",
-            len(sentiment_data.get("speaker_scores", {})),
-            len(sentiment_data.get("segment_scores", [])),
-        )
-
-        # ── Step 6: Store results + mark processed ─────────────────────────────
-        asyncio.run(
-            _store_results(meeting_id, extractions, sentiment_data, chunk_segments)
-        )
-
-        logger.info("Pipeline complete: meeting_id=%d", meeting_id)
 
         return {
             "meeting_id":    meeting_id,
@@ -340,6 +359,5 @@ def process_meeting(meeting_id: int, filename: str, content: str) -> dict:
 
     except Exception as exc:
         logger.exception("Pipeline failed: meeting_id=%d  error=%s", meeting_id, exc)
-        # Write error to DB so the status endpoint can surface it
         asyncio.run(_mark_error(meeting_id, str(exc)))
-        raise   # re-raise → Celery marks task as FAILURE
+        raise
