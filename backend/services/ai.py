@@ -210,3 +210,57 @@ Rules:
         "speaker_scores": data.get("speaker_scores") or {},
         "segment_scores": data.get("segment_scores") or [],
     }
+
+
+def reformulate_question(question: str, chat_history: list[dict]) -> str:
+    """
+    Rewrite a follow-up question into a standalone question using chat history.
+
+    Args:
+        question:     The user's latest message (may contain pronouns/references).
+        chat_history: Prior turns [{"question": str, "answer": str}, ...] oldest first.
+
+    Returns:
+        A rewritten, self-contained question string.
+        Falls back to original question if the model returns something unexpected.
+    """
+    # Build a condensed history string — last 3 turns is enough for context
+    recent = chat_history[-3:]
+    history_lines = []
+    for turn in recent:
+        history_lines.append(f"User: {turn['question']}")
+        history_lines.append(f"Assistant: {turn['answer'][:200]}...")  # truncate long answers
+    history_text = "\n".join(history_lines)
+
+    system_prompt = (
+        "You are a question rewriter. "
+        "Given a conversation history and a follow-up question, rewrite the follow-up "
+        "as a complete, standalone question that does not rely on the prior context. "
+        "Return only the rewritten question as a plain string — no JSON, no explanation."
+    )
+
+    user_prompt = f"""Conversation so far:
+{history_text}
+
+Follow-up question: {question}
+
+Rewrite this as a standalone question that can be understood without the conversation above.
+Return ONLY the rewritten question."""
+
+    # We don't use json_object format here — it's a plain string response.
+    client = get_client()
+    response = client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.0,
+    )
+    rewritten = response.choices[0].message.content.strip()
+
+    # Sanity check — if the model returned something very short or empty, use original
+    if len(rewritten) < 5:
+        return question
+
+    return rewritten
