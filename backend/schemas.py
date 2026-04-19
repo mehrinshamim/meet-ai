@@ -101,3 +101,28 @@ class StatsOut(BaseModel):
     total_projects: int
     total_decisions: int
     total_action_items: int
+
+
+# ─── Chat ─────────────────────────────────────────────────────────────────────
+
+class ChatRequest(BaseModel):
+    question: str
+    meeting_id: int | None = None      # None = cross-meeting query
+    session_id: str | None = None      # None → server generates one
+
+
+class ChatOut(BaseModel):
+    id: int
+    session_id: str
+    meeting_id: int | None
+    question: str
+    answer: str
+    citations: list | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChatHistoryOut(BaseModel):
+    session_id: str
+    messages: list[ChatOut]

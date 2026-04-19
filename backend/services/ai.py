@@ -212,6 +212,105 @@ Rules:
     }
 
 
+def answer_question(
+    question: str,
+    context_blocks: list[str],
+    meeting_scope: str | None = None,
+) -> str:
+    """
+    Generate an answer to a question using retrieved context blocks.
+
+    Args:
+        question:       The user's question (possibly already reformulated).
+        context_blocks: List of formatted context strings from retrieval.py.
+                        Each block has a [Meeting | Time | Speaker] header.
+        meeting_scope:  Optional filename hint — tells the model the scope
+                        of the query (single meeting vs all meetings).
+
+    Returns:
+        The model's answer as a plain string.
+        Citations embedded as [[meeting: X, time: Y, speaker: Z]] in the text.
+        Returns a "no information found" message if context_blocks is empty.
+    """
+    if not context_blocks:
+        return (
+            "I could not find relevant information in the meeting transcripts "
+            "to answer your question. Please try rephrasing or check that the "
+            "meeting has been processed."
+        )
+
+    context_text = "\n\n---\n\n".join(context_blocks)
+    scope_hint = (
+        f"You are answering questions about the meeting file: {meeting_scope}"
+        if meeting_scope
+        else "You are answering questions across all available meeting transcripts."
+    )
+
+    system_prompt = (
+        "You are a helpful meeting assistant. "
+        "Answer questions using only the provided transcript excerpts. "
+        "When you reference specific information, cite it using the format: "
+        "[[meeting: <filename>, time: <HH:MM:SS>, speaker: <name>]]. "
+        "If the answer cannot be found in the context, say so clearly. "
+        "Do not fabricate information. Be concise and factual."
+    )
+
+    user_prompt = f"""{scope_hint}
+
+Transcript excerpts:
+{context_text}
+
+Question: {question}
+
+Answer (include [[meeting: ..., time: ..., speaker: ...]] citations for each fact you reference):"""
+
+    client = get_client()
+    response = client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.0,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def parse_citations(answer: str) -> list[dict]:
+    """
+    Extract citation objects from an answer string.
+
+    Looks for [[meeting: X, time: Y, speaker: Z]] patterns and returns
+    a deduplicated list of citation dicts suitable for storing in JSONB.
+
+    Args:
+        answer: The raw answer string from answer_question().
+
+    Returns:
+        [{"meeting": "filename", "timestamp": "HH:MM:SS", "speaker": "name"}, ...]
+    """
+    import re
+
+    pattern = r'\[\[meeting:\s*([^,\]]+),\s*time:\s*([^,\]]+),\s*speaker:\s*([^\]]+)\]\]'
+    seen: set[tuple] = set()
+    citations: list[dict] = []
+
+    for match in re.finditer(pattern, answer):
+        meeting = match.group(1).strip()
+        timestamp = match.group(2).strip()
+        speaker = match.group(3).strip()
+        key = (meeting, timestamp, speaker)
+        if key not in seen:
+            seen.add(key)
+            citations.append({
+                "meeting": meeting,
+                "timestamp": timestamp,
+                "speaker": speaker,
+            })
+
+    return citations
+
+
 def reformulate_question(question: str, chat_history: list[dict]) -> str:
     """
     Rewrite a follow-up question into a standalone question using chat history.

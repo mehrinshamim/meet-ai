@@ -23,7 +23,7 @@ Why CORSMiddleware with allow_origins=["*"]?
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.routes import extractions, meetings, sentiment
+from backend.routes import chat, extractions, meetings, sentiment
 
 app = FastAPI(
     title="MeetAI",
@@ -41,3 +41,4 @@ app.add_middleware(
 app.include_router(meetings.router, prefix="/api")
 app.include_router(extractions.router, prefix="/api")
 app.include_router(sentiment.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
