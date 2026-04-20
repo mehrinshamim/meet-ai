@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeetAI — Upload Transcript</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav>
+    <span class="nav-brand">MeetAI</span>
+    <div class="nav-links">
+        <a href="index.html">Dashboard</a>
+        <a href="upload.html">Upload</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Upload Transcript</h1>
+            <p class="page-subtitle">Supported formats: .txt and .vtt</p>
+        </div>
+        <a class="btn btn-outline" href="index.html">← Back to dashboard</a>
+    </div>
+
+    <div class="upload-wrap">
+
+        <!-- Drop zone -->
+        <div class="drop-zone" id="drop-zone">
+            <div class="drop-icon">📄</div>
+            <div class="drop-text"><strong>Drop your transcript here</strong><br>or click to choose a file</div>
+            <div class="drop-hint">.txt or .vtt only</div>
+            <div class="file-info" id="file-info" style="display:none;"></div>
+        </div>
+        <input type="file" id="file-input" accept=".txt,.vtt" style="display:none;">
+
+        <!-- Project selector -->
+        <div class="form-row">
+            <label for="project-select">Project (optional)</label>
+            <select id="project-select">
+                <option value="">— No project —</option>
+            </select>
+        </div>
+
+        <!-- Upload button -->
+        <button class="btn btn-primary" id="btn-upload" style="width:100%;" disabled>
+            Upload &amp; Process
+        </button>
+
+        <!-- Status / progress -->
+        <div class="status-box" id="status-box"></div>
+
+        <!-- Link to meeting when done -->
+        <div id="done-link" style="margin-top:16px;display:none;">
+            <a class="btn btn-primary" id="view-meeting-link" href="#">View Meeting →</a>
+        </div>
+
+    </div>
+</div>
+
+<script type="module" src="js/upload.js"></script>
+</body>
+</html>

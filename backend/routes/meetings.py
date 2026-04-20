@@ -243,6 +243,17 @@ async def create_project(
     )
 
 
+# ─── List Meetings ────────────────────────────────────────────────────────────
+
+@router.get("/meetings", response_model=list[MeetingOut])
+async def list_meetings(db: AsyncSession = Depends(get_db)):
+    """Return all meetings newest first (up to 50), used by the dashboard."""
+    result = await db.execute(
+        select(Meeting).order_by(Meeting.created_at.desc()).limit(50)
+    )
+    return result.scalars().all()
+
+
 # ─── Stats ────────────────────────────────────────────────────────────────────
 
 @router.get("/stats", response_model=StatsOut)

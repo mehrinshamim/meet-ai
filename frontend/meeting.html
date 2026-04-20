@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeetAI — Meeting</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav>
+    <span class="nav-brand">MeetAI</span>
+    <div class="nav-links">
+        <a href="index.html">Dashboard</a>
+        <a href="upload.html">Upload</a>
+    </div>
+</nav>
+
+<!-- Meeting header (filled by JS) -->
+<div class="meeting-header">
+    <div class="container">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+            <div>
+                <h1 id="meeting-title">Loading…</h1>
+                <div class="meeting-meta" id="meeting-meta"></div>
+            </div>
+            <a class="btn btn-outline btn-sm" href="index.html">← Dashboard</a>
+        </div>
+    </div>
+</div>
+
+<!-- Processing state shown until meeting is ready -->
+<div id="processing-banner" class="container" style="display:none;padding-top:24px;">
+    <div class="status-box info" style="display:block;">
+        <span class="spinner"></span> Meeting is still processing. This page will refresh automatically…
+    </div>
+</div>
+
+<!-- Main content (hidden until processed) -->
+<div id="main-content" style="display:none;">
+    <!-- Tabs -->
+    <div class="tabs container" style="padding-left:0;padding-right:0;">
+        <div class="tab active" data-tab="extractions">Extractions</div>
+        <div class="tab" data-tab="sentiment">Sentiment</div>
+        <div class="tab" data-tab="chat">Chat</div>
+    </div>
+
+    <!-- Panel: Extractions -->
+    <div class="panel active container" id="panel-extractions">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+            <a class="btn btn-outline btn-sm" id="export-csv-btn" href="#" target="_blank">Export CSV</a>
+        </div>
+        <div class="extractions-grid">
+            <div>
+                <div class="section-title" style="margin-bottom:10px;">Decisions</div>
+                <ul class="decisions-list" id="decisions-list">
+                    <div class="empty"><span class="spinner"></span></div>
+                </ul>
+            </div>
+            <div>
+                <div class="section-title" style="margin-bottom:10px;">Action Items</div>
+                <div class="table-wrap" id="actions-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Task</th><th>Assignee</th><th>Due</th><th>Time</th></tr>
+                        </thead>
+                        <tbody id="actions-tbody">
+                            <tr><td colspan="4" class="empty"><span class="spinner"></span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel: Sentiment -->
+    <div class="panel container" id="panel-sentiment">
+        <div class="chart-wrap">
+            <div class="chart-title">Speaker Sentiment (avg score: −1.0 very negative → +1.0 very positive)</div>
+            <canvas id="sentiment-canvas" style="width:100%;"></canvas>
+        </div>
+        <div class="timeline-wrap">
+            <div class="timeline-title">Segment Timeline — click a block to see details</div>
+            <div class="timeline" id="segment-timeline"></div>
+            <div class="segment-detail" id="segment-detail"></div>
+        </div>
+    </div>
+
+    <!-- Panel: Chat -->
+    <div class="panel container" id="panel-chat">
+        <div class="chat-wrap">
+            <div class="chat-toolbar">
+                <span style="font-size:13px;font-weight:500;">Scope:</span>
+                <div class="scope-toggle">
+                    <button class="scope-btn active" id="scope-meeting">This meeting</button>
+                    <button class="scope-btn" id="scope-all">All meetings</button>
+                </div>
+                <span id="chat-session-label" class="text-muted" style="font-size:11px;margin-left:auto;"></span>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <p class="empty">Ask a question about this meeting…</p>
+            </div>
+            <div class="chat-input-row">
+                <input type="text" id="chat-input" placeholder="Type your question…">
+                <button class="btn btn-primary" id="chat-send">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="js/meeting.js"></script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeetAI — Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav>
+    <span class="nav-brand">MeetAI</span>
+    <div class="nav-links">
+        <a href="index.html">Dashboard</a>
+        <a href="upload.html">Upload</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">Overview of all meetings and projects</p>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button class="btn btn-outline" id="btn-new-project">+ New Project</button>
+            <a class="btn btn-primary" href="upload.html">Upload Transcript</a>
+        </div>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="stats-bar" id="stats-bar">
+        <div class="stat-card"><div class="stat-value" id="s-meetings">—</div><div class="stat-label">Total Meetings</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-processed">—</div><div class="stat-label">Processed</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-projects">—</div><div class="stat-label">Projects</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-decisions">—</div><div class="stat-label">Decisions Found</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-actions">—</div><div class="stat-label">Action Items</div></div>
+    </div>
+
+    <!-- Projects -->
+    <div class="section-title">
+        Projects
+        <span id="projects-count" class="text-muted" style="font-size:12px;font-weight:400;"></span>
+    </div>
+    <div class="cards-grid" id="projects-grid">
+        <div class="empty"><span class="spinner"></span></div>
+    </div>
+
+    <hr class="section-sep">
+
+    <!-- Recent meetings -->
+    <div class="section-title">Recent Meetings</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Format</th>
+                    <th>Project</th>
+                    <th>Speakers</th>
+                    <th>Status</th>
+                    <th>Uploaded</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="meetings-tbody">
+                <tr><td colspan="7" class="empty"><span class="spinner"></span></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- New project modal -->
+<div class="modal-backdrop" id="modal-project">
+    <div class="modal">
+        <div class="modal-title">New Project</div>
+        <div class="form-row">
+            <label for="proj-name">Project name *</label>
+            <input type="text" id="proj-name" placeholder="e.g. Q2 Planning">
+        </div>
+        <div class="form-row">
+            <label for="proj-desc">Description</label>
+            <input type="text" id="proj-desc" placeholder="Optional description">
+        </div>
+        <div id="modal-err" style="color:var(--danger);font-size:12px;margin-top:8px;display:none;"></div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" id="btn-cancel-modal">Cancel</button>
+            <button class="btn btn-primary" id="btn-save-project">Create</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="js/dashboard.js"></script>
+</body>
+</html>
